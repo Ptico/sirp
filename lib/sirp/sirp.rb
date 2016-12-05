@@ -32,7 +32,7 @@ module SIRP
 
     a.compact.map do |v|
       xv = v.is_a?(String) ? v : num_to_hex(v)
-      hasher.update [xv].pack('H*')
+      hasher.update xv.downcase
     end
 
     digest = hasher.hexdigest
