@@ -32,7 +32,7 @@ module SIRP
 
     a.compact.map do |v|
       xv = v.is_a?(String) ? v : num_to_hex(v)
-      hasher.update [xv].pack('H*')
+      hasher.update xv.downcase
     end
 
     digest = hasher.hexdigest
@@ -48,7 +48,7 @@ module SIRP
   # @return [Bignum] the 'k' value as a Bignum
   Contract Bignum, Nat, RespondTo[:hexdigest] => Bignum
   def calc_k(nn, g, hash_klass)
-    H(hash_klass, [nn, g])
+    H(hash_klass, [nn, g].map(&:to_s))
   end
 
   # Private Key (derived from username, password and salt)
@@ -184,20 +184,23 @@ module SIRP
     mod_pow(aa * mod_pow(v, u, nn), b, nn)
   end
 
-  # M = H(A, B, K)
-  #
+  # M = H( H(N) XOR H(g), H(I), s, A, B, K)
+  # @param username [String] plain username
+  # @param xsalt [String] salt value in hex
   # @param xaa [String] the 'A' value in hex
   # @param xbb [String] the 'B' value in hex
   # @param xkk [String] the 'K' value in hex
+  # @param n [Bignum] the 'N' value in decimal
+  # @param n [Fixnum] the 'g' value in decimal
   # @param hash_klass [Digest::SHA1, Digest::SHA256] The hash class that responds to hexdigest
   # @return [String] the 'M' value in hex
-  Contract String, String, String, RespondTo[:hexdigest] => String
-  def calc_M(xaa, xbb, xkk, hash_klass)
-    digester = hash_klass.new
-    digester << hex_to_bytes(xaa).pack('C*')
-    digester << hex_to_bytes(xbb).pack('C*')
-    digester << hex_to_bytes(xkk).pack('C*')
-    digester.hexdigest
+  Contract String, String, String, String, String, Bignum, Fixnum, RespondTo[:hexdigest] => String
+  def calc_M(username, xsalt, xaa, xbb, xkk, n, g, hash_class)
+    hn = hash_class.hexdigest n.to_s
+    hg = hash_class.hexdigest g.to_s
+    hxor = hn.to_i(16) ^ hg.to_i(16)
+    hi = hash_class.hexdigest username
+    num_to_hex(H(hash_class, [[hxor, hi.to_i(16), xsalt, xaa.to_i(16), xbb.to_i(16), xkk].map(&:to_s).join]))
   end
 
   # H(A, M, K)
@@ -209,7 +212,6 @@ module SIRP
   # @return [String] the 'H_AMK' value in hex
   Contract String, String, String, RespondTo[:hexdigest] => String
   def calc_H_AMK(xaa, xmm, xkk, hash_klass)
-    byte_string = hex_to_bytes([xaa, xmm, xkk].join('')).pack('C*')
-    hash_klass.hexdigest(byte_string)
+    hash_klass.hexdigest(xaa.to_i(16).to_s + xmm + xkk)
   end
 end

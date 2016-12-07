@@ -112,10 +112,10 @@ module SIRP
 
       # Calculate session key 'S' and secret key 'K'
       @S = num_to_hex(calc_server_S(@A.to_i(16), @b, v, u, @N))
-      @K = hash.hexdigest([@S].pack('H*'))
+      @K = hash.hexdigest(@S.to_i(16).to_s)
 
       # Calculate the 'M' matcher
-      @M = calc_M(@A, @B, @K, hash)
+      @M = calc_M(proof[:I], proof[:s], @A, @B, @K, @N, @g, hash)
 
       if secure_compare(@M, client_M)
         # Authentication succeeded, Calculate the H(A,M,K) verifier

@@ -58,7 +58,6 @@ module SIRP
 
       # Convert the 'B' hex value to an Integer
       bb = xbb.to_i(16)
-
       fail SafetyCheckError, 'B % N cannot equal 0' if (bb % @N).zero?
 
       x = calc_x(username, password, xsalt)
@@ -68,10 +67,10 @@ module SIRP
 
       # Calculate session key 'S' and secret key 'K'
       @S = num_to_hex(calc_client_S(bb, @a, @k, x, u, @N, @g))
-      @K = hash.hexdigest([@S].pack('H*'))
+      @K = hash.hexdigest(@S.to_i(16).to_s)
 
       # Calculate the 'M' matcher
-      @M = calc_M(@A, xbb, @K, hash)
+      @M = calc_M(username, xsalt, @A, xbb, @K, @N, @g, hash)
 
       # Calculate the H(A,M,K) verifier
       @H_AMK = calc_H_AMK(@A, @M, @K, hash)
